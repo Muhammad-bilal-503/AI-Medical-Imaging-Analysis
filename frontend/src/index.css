@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-canvas text-ink;
+  }
+  body {
+    @apply font-sans antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid #0E6E66;
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-panel border border-line rounded-md;
+  }
+  .btn-primary {
+    @apply bg-teal text-white text-sm font-medium px-4 py-2 rounded-sm
+           hover:bg-teal-deep transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-transparent text-ink text-sm font-medium px-4 py-2 rounded-sm border border-line
+           hover:border-teal hover:text-teal transition-colors disabled:opacity-40;
+  }
+  .input {
+    @apply w-full bg-panel border border-line rounded-sm px-3 py-2 text-sm
+           focus:border-teal focus:outline-none placeholder:text-muted/60;
+  }
+  .label {
+    @apply text-xs font-medium text-muted uppercase tracking-wide;
+  }
+}
+
+/* Signature element: the "scan trace" sweep, used while the AI
+   pipeline is processing an uploaded image — a literal nod to how a
+   scanner actually acquires an image, line by line. */
+@keyframes scan-trace {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+.scan-trace::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, rgba(14, 110, 102, 0.35) 45%, rgba(14, 110, 102, 0.35) 55%, transparent 100%);
+  animation: scan-trace 1.8s linear infinite;
+}
