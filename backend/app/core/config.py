@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     SUPABASE_PUBLISHABLE_KEY: str   # client-safe key, replaces old "anon" key
     SUPABASE_SECRET_KEY: str        # server-side key, replaces old "service_role" key
     SUPABASE_JWKS_URL: str          # new asymmetric-key projects expose this instead of a JWT secret
+    SUPABASE_LEGACY_SERVICE_ROLE_JWT: str  # Settings > API > Legacy API Keys > service_role
+    # ^ ONLY the legacy JWT-format service_role key can call the Auth
+    # Admin API (auth.admin.create_user etc). The new secret key is
+    # rejected by that specific API with "User not allowed" — see
+    # app/db/supabase_client.py get_legacy_admin_client().
 
     ENVIRONMENT: str = "development"
     CORS_ORIGINS: str = "http://localhost:5173"

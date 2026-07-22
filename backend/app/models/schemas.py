@@ -43,6 +43,16 @@ class SignupRequest(BaseModel):
     license_number: Optional[str] = None
 
 
+class AdminCreateUserRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+    full_name: str
+    role: UserRole
+    specialty: Optional[str] = None
+    license_number: Optional[str] = None
+    hospital_affiliation: Optional[str] = None
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -64,6 +74,7 @@ class CurrentUser(BaseModel):
 # ---------- Users ----------
 class UserProfile(BaseModel):
     id: str
+    email: Optional[str] = None
     full_name: str
     role: UserRole
     specialty: Optional[str] = None

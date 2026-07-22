@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Activity, LogOut } from "lucide-react";
+import { Activity, LogOut, ShieldCheck } from "lucide-react";
 
 export default function Navbar({ user }) {
   const navigate = useNavigate();
@@ -19,7 +19,16 @@ export default function Navbar({ user }) {
           </span>
         </Link>
         {user && (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
+            {user.role === "admin" && (
+              <Link
+                to="/admin"
+                className="flex items-center gap-1.5 text-sm text-muted hover:text-teal"
+              >
+                <ShieldCheck size={16} />
+                Admin
+              </Link>
+            )}
             <div className="text-right leading-tight">
               <div className="text-sm font-medium">{user.full_name}</div>
               <div className="text-xs text-muted capitalize">{user.role}</div>

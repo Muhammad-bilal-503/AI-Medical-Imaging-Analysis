@@ -25,8 +25,17 @@ client.interceptors.response.use(
 
 export const auth = {
   login: (email, password) => client.post("/auth/login", { email, password }),
-  signup: (payload) => client.post("/auth/signup", payload),
   me: () => client.get("/auth/me"),
+};
+
+export const admin = {
+  listUsers: () => client.get("/admin/users"),
+  createUser: (payload) => client.post("/admin/users", payload),
+  setActive: (userId, isActive) =>
+    client.patch(`/admin/users/${userId}/active`, null, {
+      params: { is_active: isActive },
+    }),
+  stats: () => client.get("/admin/stats"),
 };
 
 export const patients = {

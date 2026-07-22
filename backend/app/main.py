@@ -5,7 +5,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.core.config import get_settings
-from app.api.routes import auth, patients, images, reports
+from app.api.routes import admin, auth, patients, images, reports
 
 settings = get_settings()
 
@@ -29,6 +29,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")
 app.include_router(patients.router, prefix="/api/v1")
 app.include_router(images.router, prefix="/api/v1")
 app.include_router(reports.router, prefix="/api/v1")

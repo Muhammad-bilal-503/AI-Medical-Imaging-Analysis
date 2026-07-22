@@ -78,12 +78,25 @@ URL to download it.
 
 ## Auth model
 
+- **No public signup.** Accounts are admin-only. Run
+  `python -m scripts.create_first_admin` once (from `backend/`) to
+  create the first admin — after that, log in as them and use
+  `POST /api/v1/admin/users` (or the frontend Admin panel) to create
+  doctor/radiologist/other admin accounts. Each is created
+  pre-confirmed with a password the admin hands them directly — no
+  email link involved.
 - Supabase Auth issues the JWT; `public.users` holds app-level role
   (`admin` / `doctor` / `radiologist`) and profile fields.
 - Every route uses a **request-scoped client** (`get_user_client`)
   built from the caller's bearer token, so Postgres Row-Level Security
   enforces access — not just the API layer. The service-role client is
-  reserved for signup/admin operations.
+  reserved for backend-internal operations (background jobs, admin
+  account management). A **separate legacy JWT client**
+  (`get_legacy_admin_client`) exists solely for Supabase's Auth Admin
+  API (`auth.admin.create_user` etc) — the new opaque secret key is
+  rejected by that specific API ("User not allowed") even though it
+  works for ordinary database/storage calls. Get this key from
+  Project Settings > API > Legacy API Keys > service_role.
 - `require_roles(...)` gives per-route RBAC on top of RLS.
 
 ## What's deliberately not here yet

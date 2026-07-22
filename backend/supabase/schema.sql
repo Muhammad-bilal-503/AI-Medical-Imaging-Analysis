@@ -16,6 +16,7 @@ create type report_status as enum ('pending', 'ai_generated', 'reviewed', 'final
 -- This table stores app-level profile + role for RBAC.
 create table public.users (
     id uuid primary key references auth.users(id) on delete cascade,
+    email text unique,
     full_name text not null,
     role user_role not null default 'doctor',
     specialty text,

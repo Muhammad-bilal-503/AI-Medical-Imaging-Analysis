@@ -32,3 +32,18 @@ def get_user_client(access_token: str) -> Client:
     client.options.headers["Authorization"] = f"Bearer {access_token}"
     client.postgrest.auth(access_token)
     return client
+
+
+@lru_cache
+def get_legacy_admin_client() -> Client:
+    """
+    Client authenticated with the LEGACY JWT-format service_role key,
+    used ONLY for Supabase Auth Admin API calls (auth.admin.create_user,
+    auth.admin.delete_user, etc). The new opaque secret key is rejected
+    by those specific endpoints with "User not allowed" even though it
+    works fine for ordinary database/storage calls — this is a
+    Supabase-side gap in the new key rollout, not a bug in this app.
+    Do not use this client for table/storage operations; use
+    get_service_client() for those.
+    """
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_LEGACY_SERVICE_ROLE_JWT)

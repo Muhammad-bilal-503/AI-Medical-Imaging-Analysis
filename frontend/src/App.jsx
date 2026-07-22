@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import PatientDetail from "./pages/PatientDetail";
 import ReportViewer from "./pages/ReportViewer";
+import Admin from "./pages/Admin";
 import { auth } from "./api/client";
 
 function RequireAuth({ user, children }) {
@@ -64,6 +65,14 @@ export default function App() {
           element={
             <RequireAuth user={user}>
               <ReportViewer />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <RequireAuth user={user}>
+              {user?.role === "admin" ? <Admin /> : <Navigate to="/" replace />}
             </RequireAuth>
           }
         />
