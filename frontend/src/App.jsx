@@ -48,7 +48,7 @@ export default function App() {
           path="/"
           element={
             <RequireAuth user={user}>
-              <Dashboard />
+              {user?.role === "admin" ? <Navigate to="/admin" replace /> : <Dashboard />}
             </RequireAuth>
           }
         />

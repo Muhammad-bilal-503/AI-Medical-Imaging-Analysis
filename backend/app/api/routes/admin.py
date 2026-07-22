@@ -75,6 +75,28 @@ def set_user_active(
     return UserProfile(**result.data[0])
 
 
+@router.get("/patients")
+def list_all_patients(current_user: CurrentUser = Depends(require_roles(UserRole.admin))):
+    """All patients in the system, each annotated with which doctor(s)
+    currently have access — the admin oversight view. Regular doctors
+    never see this; their /patients list is scoped to their own access."""
+    db = get_service_client()
+    patients_res = db.table("patients").select("*").order("created_at", desc=True).execute()
+    access_res = db.table("patient_access").select("patient_id, doctor_id").execute()
+    users_res = db.table("users").select("id, full_name").execute()
+
+    user_names = {u["id"]: u["full_name"] for u in users_res.data}
+    doctors_by_patient: dict[str, list[str]] = {}
+    for row in access_res.data:
+        doctors_by_patient.setdefault(row["patient_id"], []).append(
+            user_names.get(row["doctor_id"], "Unknown")
+        )
+
+    return [
+        {**p, "doctors": doctors_by_patient.get(p["id"], [])} for p in patients_res.data
+    ]
+
+
 @router.get("/stats")
 def get_stats(current_user: CurrentUser = Depends(require_roles(UserRole.admin))):
     """High-level counts for the admin overview panel."""

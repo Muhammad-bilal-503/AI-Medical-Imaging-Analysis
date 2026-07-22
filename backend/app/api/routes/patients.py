@@ -10,9 +10,7 @@ router = APIRouter(prefix="/patients", tags=["patients"])
 @router.post("", response_model=PatientOut, status_code=201)
 def create_patient(
     payload: PatientCreate,
-    current_user: CurrentUser = Depends(
-        require_roles(UserRole.admin, UserRole.doctor, UserRole.radiologist)
-    ),
+    current_user: CurrentUser = Depends(require_roles(UserRole.doctor, UserRole.radiologist)),
     token: str = Depends(get_current_token),
 ):
     client = get_user_client(token)

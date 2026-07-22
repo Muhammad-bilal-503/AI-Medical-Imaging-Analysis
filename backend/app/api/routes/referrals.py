@@ -9,20 +9,20 @@ from app.models.schemas import CurrentUser, ReferralCreate, ReferralOut, UserRol
 router = APIRouter(prefix="/referrals", tags=["referrals"])
 
 
-def _enrich(client, referral: dict) -> dict:
-    """Fills in display names — the DB row only has IDs."""
-    patient = (
-        client.table("patients").select("full_name").eq("id", referral["patient_id"]).single().execute()
-    )
+def _enrich(referral: dict) -> dict:
+    """Fills in display names — the DB row only has IDs. Uses the
+    service client deliberately: the viewer (especially the doctor a
+    referral was just sent TO, before they've accepted it) may not yet
+    have patient_access to look up the patient's name themselves, but
+    they still need to see who/what the referral is about to decide
+    whether to accept it."""
+    db = get_service_client()
+    patient = db.table("patients").select("full_name").eq("id", referral["patient_id"]).single().execute()
     from_doc = (
-        client.table("users")
-        .select("full_name")
-        .eq("id", referral["referring_doctor_id"])
-        .single()
-        .execute()
+        db.table("users").select("full_name").eq("id", referral["referring_doctor_id"]).single().execute()
     )
     to_doc = (
-        client.table("users")
+        db.table("users")
         .select("full_name")
         .eq("id", referral["referred_to_doctor_id"])
         .single()
@@ -96,7 +96,7 @@ def create_referral(
         )
         .execute()
     )
-    return ReferralOut(**_enrich(client, result.data[0]))
+    return ReferralOut(**_enrich(result.data[0]))
 
 
 @router.get("/incoming", response_model=list[ReferralOut])
@@ -113,7 +113,7 @@ def list_incoming(
         .order("created_at", desc=True)
         .execute()
     )
-    return [ReferralOut(**_enrich(client, row)) for row in result.data]
+    return [ReferralOut(**_enrich(row)) for row in result.data]
 
 
 @router.get("/outgoing", response_model=list[ReferralOut])
@@ -129,7 +129,7 @@ def list_outgoing(
         .order("created_at", desc=True)
         .execute()
     )
-    return [ReferralOut(**_enrich(client, row)) for row in result.data]
+    return [ReferralOut(**_enrich(row)) for row in result.data]
 
 
 @router.post("/{referral_id}/accept", response_model=ReferralOut)
@@ -161,7 +161,7 @@ def accept_referral(
         .eq("id", referral_id)
         .execute()
     )
-    return ReferralOut(**_enrich(client, updated.data[0]))
+    return ReferralOut(**_enrich(updated.data[0]))
 
 
 @router.post("/{referral_id}/decline", response_model=ReferralOut)
@@ -185,4 +185,4 @@ def decline_referral(
         .eq("id", referral_id)
         .execute()
     )
-    return ReferralOut(**_enrich(client, updated.data[0]))
+    return ReferralOut(**_enrich(updated.data[0]))

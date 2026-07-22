@@ -38,6 +38,7 @@ export const referrals = {
 
 export const admin = {
   listUsers: () => client.get("/admin/users"),
+  listPatients: () => client.get("/admin/patients"),
   createUser: (payload) => client.post("/admin/users", payload),
   setActive: (userId, isActive) =>
     client.patch(`/admin/users/${userId}/active`, null, {
