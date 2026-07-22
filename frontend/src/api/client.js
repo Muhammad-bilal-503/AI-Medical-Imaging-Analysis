@@ -28,6 +28,14 @@ export const auth = {
   me: () => client.get("/auth/me"),
 };
 
+export const referrals = {
+  create: (payload) => client.post("/referrals", payload),
+  incoming: () => client.get("/referrals/incoming"),
+  outgoing: () => client.get("/referrals/outgoing"),
+  accept: (id) => client.post(`/referrals/${id}/accept`),
+  decline: (id) => client.post(`/referrals/${id}/decline`),
+};
+
 export const admin = {
   listUsers: () => client.get("/admin/users"),
   createUser: (payload) => client.post("/admin/users", payload),

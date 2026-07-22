@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, UserPlus, ChevronRight } from "lucide-react";
-import { patients } from "../api/client";
+import { Search, UserPlus, ChevronRight, Inbox, Check, X } from "lucide-react";
+import { patients, referrals } from "../api/client";
 import AddPatientModal from "../components/AddPatientModal";
 
 export default function Dashboard() {
@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [incoming, setIncoming] = useState([]);
 
   async function load(query) {
     setLoading(true);
@@ -20,8 +21,18 @@ export default function Dashboard() {
     }
   }
 
+  async function loadReferrals() {
+    try {
+      const res = await referrals.incoming();
+      setIncoming(res.data);
+    } catch {
+      /* non-critical */
+    }
+  }
+
   useEffect(() => {
     load();
+    loadReferrals();
   }, []);
 
   useEffect(() => {
@@ -29,8 +40,55 @@ export default function Dashboard() {
     return () => clearTimeout(t);
   }, [q]);
 
+  async function respond(id, action) {
+    await (action === "accept" ? referrals.accept(id) : referrals.decline(id));
+    setIncoming(incoming.filter((r) => r.id !== id));
+    if (action === "accept") load(q || undefined);
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
+      {incoming.length > 0 && (
+        <div className="card p-5 mb-8 border-l-2 border-l-amber">
+          <div className="flex items-center gap-2 mb-3">
+            <Inbox size={16} className="text-amber" />
+            <h2 className="font-display text-lg">Incoming Referrals</h2>
+          </div>
+          <div className="space-y-2">
+            {incoming.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between bg-amber-bg/40 rounded-sm px-4 py-3"
+              >
+                <div>
+                  <div className="text-sm font-medium">{r.patient_name}</div>
+                  <div className="text-xs text-muted mt-0.5">
+                    Referred by {r.referring_doctor_name}
+                    {r.note ? ` — "${r.note}"` : ""}
+                  </div>
+                </div>
+                <div className="flex gap-2 shrink-0 ml-3">
+                  <button
+                    onClick={() => respond(r.id, "accept")}
+                    className="flex items-center gap-1 text-xs font-medium text-green bg-green-bg px-2.5 py-1.5 rounded-sm hover:opacity-80"
+                  >
+                    <Check size={13} />
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => respond(r.id, "decline")}
+                    className="flex items-center gap-1 text-xs font-medium text-red bg-red-bg px-2.5 py-1.5 rounded-sm hover:opacity-80"
+                  >
+                    <X size={13} />
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-end justify-between mb-8">
         <div>
           <p className="label mb-1">Patients</p>

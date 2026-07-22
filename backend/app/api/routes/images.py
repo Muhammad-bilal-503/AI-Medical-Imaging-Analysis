@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from app.core.config import get_settings
 from app.db.supabase_client import get_user_client
 from app.dependencies.auth import get_current_token, get_current_user
-from app.models.schemas import AIPredictionOut, CurrentUser, MedicalImageOut, ScanType
+from app.models.schemas import AIPredictionOut, CurrentUser, MedicalImageOut, ScanType, UserRole
 from app.services.inference_service import process_chest_xray_image
 
 router = APIRouter(prefix="/images", tags=["images"])
@@ -41,6 +41,18 @@ async def upload_image(
     storage_path = f"{patient_id}/{uuid.uuid4()}.{ext}"
 
     client = get_user_client(token)
+
+    access = (
+        client.table("patient_access")
+        .select("patient_id")
+        .eq("patient_id", patient_id)
+        .eq("doctor_id", current_user.id)
+        .execute()
+    )
+    if not access.data and current_user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=403, detail="You don't have access to this patient."
+        )
 
     # Upload to Supabase Storage bucket (private — access via signed URLs only).
     client.storage.from_(settings.BUCKET_MEDICAL_IMAGES).upload(

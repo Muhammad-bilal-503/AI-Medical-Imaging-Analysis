@@ -26,6 +26,12 @@ class ReportStatus(str, Enum):
     amended = "amended"
 
 
+class ReferralStatus(str, Enum):
+    pending = "pending"
+    accepted = "accepted"
+    declined = "declined"
+
+
 class SeverityLevel(str, Enum):
     low = "low"
     moderate = "moderate"
@@ -145,3 +151,25 @@ class ReportOut(BaseModel):
     confidence_summary: Optional[str] = None
     pdf_storage_path: Optional[str] = None
     created_at: datetime
+
+
+# ---------- Referrals ----------
+class ReferralCreate(BaseModel):
+    patient_id: str
+    to_email: EmailStr
+    note: Optional[str] = None
+
+
+class ReferralOut(BaseModel):
+    id: str
+    patient_id: str
+    referring_doctor_id: str
+    referred_to_doctor_id: str
+    note: Optional[str] = None
+    status: ReferralStatus
+    created_at: datetime
+    responded_at: Optional[datetime] = None
+    # Enriched fields the route fills in for display — not raw DB columns.
+    patient_name: Optional[str] = None
+    referring_doctor_name: Optional[str] = None
+    referred_to_doctor_name: Optional[str] = None

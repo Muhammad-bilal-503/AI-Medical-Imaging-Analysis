@@ -10,6 +10,7 @@ create type user_role as enum ('admin', 'doctor', 'radiologist');
 create type scan_type as enum ('chest_xray', 'brain_mri', 'brain_ct', 'chest_ct', 'abdomen_ct');
 create type severity_level as enum ('low', 'moderate', 'high', 'critical');
 create type report_status as enum ('pending', 'ai_generated', 'reviewed', 'finalized', 'amended');
+create type referral_status as enum ('pending', 'accepted', 'declined');
 
 -- ---------- USERS (extends Supabase auth.users) ----------
 -- Supabase Auth owns auth.users (id, email, encrypted_password, etc).
@@ -41,6 +42,32 @@ create table public.patients (
     created_by uuid references public.users(id),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
+);
+
+-- ---------- PATIENT ACCESS ----------
+-- Which doctors can see a given patient. A row is created for the
+-- creating doctor when a patient is added, and for a referred doctor
+-- once they accept a referral. This is what patient/image/report SELECT
+-- RLS policies check — patients are private to the doctors who have
+-- access, not visible to every authenticated doctor by default.
+create table public.patient_access (
+    patient_id uuid not null references public.patients(id) on delete cascade,
+    doctor_id uuid not null references public.users(id) on delete cascade,
+    granted_via text not null default 'owner',  -- 'owner' | 'referral'
+    created_at timestamptz not null default now(),
+    primary key (patient_id, doctor_id)
+);
+
+-- ---------- PATIENT REFERRALS ----------
+create table public.patient_referrals (
+    id uuid primary key default gen_random_uuid(),
+    patient_id uuid not null references public.patients(id) on delete cascade,
+    referring_doctor_id uuid not null references public.users(id),
+    referred_to_doctor_id uuid not null references public.users(id),
+    note text,
+    status referral_status not null default 'pending',
+    created_at timestamptz not null default now(),
+    responded_at timestamptz
 );
 
 -- ---------- MEDICAL IMAGES ----------
@@ -127,6 +154,10 @@ create index idx_reports_patient_id on public.reports(patient_id);
 create index idx_reports_status on public.reports(status);
 create index idx_audit_logs_user_id on public.audit_logs(user_id);
 create index idx_audit_logs_created_at on public.audit_logs(created_at desc);
+create index idx_patient_access_doctor on public.patient_access(doctor_id);
+create index idx_referrals_referred_to on public.patient_referrals(referred_to_doctor_id, status);
+create index idx_referrals_referring on public.patient_referrals(referring_doctor_id);
+create index idx_referrals_patient on public.patient_referrals(patient_id);
 
 -- ---------- updated_at trigger helper ----------
 create or replace function public.set_updated_at()
@@ -154,6 +185,8 @@ alter table public.ai_predictions enable row level security;
 alter table public.reports enable row level security;
 alter table public.follow_up_reports enable row level security;
 alter table public.audit_logs enable row level security;
+alter table public.patient_access enable row level security;
+alter table public.patient_referrals enable row level security;
 
 -- Helper: current user's role
 create or replace function public.current_user_role()
@@ -161,27 +194,59 @@ returns user_role as $$
   select role from public.users where id = auth.uid();
 $$ language sql stable security definer;
 
--- Any authenticated staff (admin/doctor/radiologist) can read clinical data.
-create policy "staff can read patients" on public.patients
-    for select using (auth.role() = 'authenticated');
+-- Patients are private: visible only to doctors with explicit access
+-- (the creator, or a doctor who accepted a referral), or admins.
+-- Any authenticated doctor can still create a new patient.
+create policy "doctors see accessible patients" on public.patients
+    for select using (
+        exists (
+            select 1 from public.patient_access pa
+            where pa.patient_id = patients.id and pa.doctor_id = auth.uid()
+        )
+        or public.current_user_role() = 'admin'
+    );
 create policy "staff can insert patients" on public.patients
     for insert with check (auth.role() = 'authenticated');
 
-create policy "staff can read images" on public.medical_images
-    for select using (auth.role() = 'authenticated');
-create policy "staff can insert images" on public.medical_images
-    for insert with check (auth.role() = 'authenticated');
+create policy "doctors see accessible patient images" on public.medical_images
+    for select using (
+        exists (
+            select 1 from public.patient_access pa
+            where pa.patient_id = medical_images.patient_id and pa.doctor_id = auth.uid()
+        )
+        or public.current_user_role() = 'admin'
+    );
+create policy "doctors upload to accessible patients" on public.medical_images
+    for insert with check (
+        exists (
+            select 1 from public.patient_access pa
+            where pa.patient_id = medical_images.patient_id and pa.doctor_id = auth.uid()
+        )
+    );
 
-create policy "staff can read predictions" on public.ai_predictions
-    for select using (auth.role() = 'authenticated');
+create policy "doctors see accessible patient predictions" on public.ai_predictions
+    for select using (
+        exists (
+            select 1 from public.medical_images mi
+            join public.patient_access pa on pa.patient_id = mi.patient_id
+            where mi.id = ai_predictions.image_id and pa.doctor_id = auth.uid()
+        )
+        or public.current_user_role() = 'admin'
+    );
 create policy "staff can insert predictions" on public.ai_predictions
     for insert with check (auth.role() = 'authenticated');
 -- Written by the background inference job via the secret-key client,
 -- which (like Storage) does NOT bypass RLS under Supabase's new key
 -- system — same reasoning as the storage policies above.
 
-create policy "staff can read reports" on public.reports
-    for select using (auth.role() = 'authenticated');
+create policy "doctors see accessible patient reports" on public.reports
+    for select using (
+        exists (
+            select 1 from public.patient_access pa
+            where pa.patient_id = reports.patient_id and pa.doctor_id = auth.uid()
+        )
+        or public.current_user_role() = 'admin'
+    );
 create policy "staff can insert reports" on public.reports
     for insert with check (auth.role() = 'authenticated');
 -- Written by the background inference job (AI draft) and by
@@ -213,6 +278,27 @@ create policy "staff can read follow ups" on public.follow_up_reports
     for select using (auth.role() = 'authenticated');
 create policy "staff can insert follow ups" on public.follow_up_reports
     for insert with check (auth.role() = 'authenticated');
+
+-- ---------- PATIENT ACCESS ----------
+create policy "doctors see own access rows" on public.patient_access
+    for select using (doctor_id = auth.uid() or public.current_user_role() = 'admin');
+create policy "staff can grant access" on public.patient_access
+    for insert with check (auth.role() = 'authenticated');
+-- Granting happens in two places: patient creation (grants the
+-- creator) and referral acceptance (grants the accepting doctor) —
+-- both run as an authenticated user, never anonymously.
+
+-- ---------- PATIENT REFERRALS ----------
+create policy "doctors see referrals involving them" on public.patient_referrals
+    for select using (
+        referring_doctor_id = auth.uid()
+        or referred_to_doctor_id = auth.uid()
+        or public.current_user_role() = 'admin'
+    );
+create policy "doctors create referrals for their patients" on public.patient_referrals
+    for insert with check (referring_doctor_id = auth.uid());
+create policy "referred doctor responds to referral" on public.patient_referrals
+    for update using (referred_to_doctor_id = auth.uid() or public.current_user_role() = 'admin');
 
 -- Audit logs: append-only, admin-readable.
 create policy "system inserts audit logs" on public.audit_logs

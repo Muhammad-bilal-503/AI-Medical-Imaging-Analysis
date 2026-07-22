@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Upload, ImageIcon, FileText } from "lucide-react";
+import { Upload, ImageIcon, FileText, Share2 } from "lucide-react";
 import { patients, images as imagesApi, reports as reportsApi } from "../api/client";
 import UploadScanModal from "../components/UploadScanModal";
+import ReferPatientModal from "../components/ReferPatientModal";
 import { StatusBadge, SeverityBadge } from "../components/StatusBadge";
 
 const SCAN_LABELS = {
@@ -19,6 +20,7 @@ export default function PatientDetail() {
   const [imgs, setImgs] = useState([]);
   const [reportList, setReportList] = useState([]);
   const [showUpload, setShowUpload] = useState(false);
+  const [showRefer, setShowRefer] = useState(false);
   const [loading, setLoading] = useState(true);
 
   async function loadAll() {
@@ -63,10 +65,16 @@ export default function PatientDetail() {
             {patient.contact_number && ` · ${patient.contact_number}`}
           </p>
         </div>
-        <button onClick={() => setShowUpload(true)} className="btn-primary flex items-center gap-2">
-          <Upload size={16} />
-          Upload scan
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowRefer(true)} className="btn-secondary flex items-center gap-2">
+            <Share2 size={16} />
+            Refer
+          </button>
+          <button onClick={() => setShowUpload(true)} className="btn-primary flex items-center gap-2">
+            <Upload size={16} />
+            Upload scan
+          </button>
+        </div>
       </div>
 
       <div>
@@ -150,6 +158,14 @@ export default function PatientDetail() {
             setShowUpload(false);
             loadAll();
           }}
+        />
+      )}
+
+      {showRefer && (
+        <ReferPatientModal
+          patientId={id}
+          onClose={() => setShowRefer(false)}
+          onReferred={() => setShowRefer(false)}
         />
       )}
     </div>
