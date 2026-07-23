@@ -14,7 +14,7 @@ const SCAN_LABELS = {
   abdomen_ct: "Abdomen CT",
 };
 
-export default function PatientDetail() {
+export default function PatientDetail({ user }) {
   const { id } = useParams();
   const [patient, setPatient] = useState(null);
   const [imgs, setImgs] = useState([]);
@@ -65,16 +65,18 @@ export default function PatientDetail() {
             {patient.contact_number && ` · ${patient.contact_number}`}
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowRefer(true)} className="btn-secondary flex items-center gap-2">
-            <Share2 size={16} />
-            Refer
-          </button>
-          <button onClick={() => setShowUpload(true)} className="btn-primary flex items-center gap-2">
-            <Upload size={16} />
-            Upload scan
-          </button>
-        </div>
+        {user?.role !== "admin" && (
+          <div className="flex gap-2">
+            <button onClick={() => setShowRefer(true)} className="btn-secondary flex items-center gap-2">
+              <Share2 size={16} />
+              Refer
+            </button>
+            <button onClick={() => setShowUpload(true)} className="btn-primary flex items-center gap-2">
+              <Upload size={16} />
+              Upload scan
+            </button>
+          </div>
+        )}
       </div>
 
       <div>

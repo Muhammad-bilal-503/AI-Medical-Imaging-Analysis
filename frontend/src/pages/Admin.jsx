@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { UserPlus, Users, FileText, ScanLine, Activity } from "lucide-react";
+import { Link } from "react-router-dom";
+import { UserPlus, Users, FileText, ScanLine, Activity, ChevronRight } from "lucide-react";
 import { admin } from "../api/client";
 import CreateUserModal from "../components/CreateUserModal";
 
@@ -144,19 +145,26 @@ export default function Admin() {
             )}
             {!loading &&
               patientsList.map((p) => (
-                <div key={p.id} className="flex items-center justify-between px-5 py-4">
+                <Link
+                  key={p.id}
+                  to={`/patients/${p.id}`}
+                  className="flex items-center justify-between px-5 py-4 hover:bg-teal-dim/40 transition-colors"
+                >
                   <div>
                     <div className="text-sm font-medium">{p.full_name}</div>
                     <div className="text-xs text-muted font-mono mt-0.5">{p.patient_code}</div>
                   </div>
-                  <div className="text-xs text-muted text-right">
-                    {p.doctors && p.doctors.length > 0 ? (
-                      <span>Dr. {p.doctors.join(", ")}</span>
-                    ) : (
-                      <span className="italic">No doctor assigned</span>
-                    )}
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs text-muted text-right">
+                      {p.doctors && p.doctors.length > 0 ? (
+                        <span>Dr. {p.doctors.join(", ")}</span>
+                      ) : (
+                        <span className="italic">No doctor assigned</span>
+                      )}
+                    </div>
+                    <ChevronRight size={16} className="text-muted shrink-0" />
                   </div>
-                </div>
+                </Link>
               ))}
           </div>
         </>

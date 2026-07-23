@@ -56,7 +56,7 @@ export default function App() {
           path="/patients/:id"
           element={
             <RequireAuth user={user}>
-              <PatientDetail />
+              <PatientDetail user={user} />
             </RequireAuth>
           }
         />
