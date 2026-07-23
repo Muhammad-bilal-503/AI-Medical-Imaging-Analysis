@@ -194,6 +194,22 @@ returns user_role as $$
   select role from public.users where id = auth.uid();
 $$ language sql stable security definer;
 
+-- Helpers for referrals.py's _enrich(): expose only a name, nothing
+-- else, so a doctor who's been referred a patient (but doesn't have
+-- patient_access yet) can still see who the referral is about.
+create or replace function public.get_patient_name(p_id uuid)
+returns text as $$
+  select full_name from public.patients where id = p_id;
+$$ language sql stable security definer;
+
+create or replace function public.get_user_name(u_id uuid)
+returns text as $$
+  select full_name from public.users where id = u_id;
+$$ language sql stable security definer;
+
+grant execute on function public.get_patient_name(uuid) to authenticated;
+grant execute on function public.get_user_name(uuid) to authenticated;
+
 -- Patients are private: visible only to doctors with explicit access
 -- (the creator, or a doctor who accepted a referral), or admins.
 -- Any authenticated doctor can still create a new patient.

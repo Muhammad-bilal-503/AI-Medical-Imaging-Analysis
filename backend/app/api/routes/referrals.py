@@ -10,27 +10,22 @@ router = APIRouter(prefix="/referrals", tags=["referrals"])
 
 
 def _enrich(referral: dict) -> dict:
-    """Fills in display names — the DB row only has IDs. Uses the
-    service client deliberately: the viewer (especially the doctor a
-    referral was just sent TO, before they've accepted it) may not yet
-    have patient_access to look up the patient's name themselves, but
-    they still need to see who/what the referral is about to decide
-    whether to accept it."""
+    """Fills in display names — the DB row only has IDs. Uses two
+    security-definer SQL functions (get_patient_name / get_user_name)
+    rather than a raw table SELECT: the service client does NOT
+    actually bypass patient_access RLS (it has no auth.uid(), so the
+    'doctors see accessible patients' policy never matches for it) —
+    but the doctor a referral was just sent TO still needs to see who
+    it's about before they've been granted access. These functions
+    expose only a name, nothing else, which keeps that safe."""
     db = get_service_client()
-    patient = db.table("patients").select("full_name").eq("id", referral["patient_id"]).single().execute()
-    from_doc = (
-        db.table("users").select("full_name").eq("id", referral["referring_doctor_id"]).single().execute()
-    )
-    to_doc = (
-        db.table("users")
-        .select("full_name")
-        .eq("id", referral["referred_to_doctor_id"])
-        .single()
-        .execute()
-    )
-    referral["patient_name"] = patient.data["full_name"] if patient.data else None
-    referral["referring_doctor_name"] = from_doc.data["full_name"] if from_doc.data else None
-    referral["referred_to_doctor_name"] = to_doc.data["full_name"] if to_doc.data else None
+    patient_name = db.rpc("get_patient_name", {"p_id": referral["patient_id"]}).execute()
+    from_name = db.rpc("get_user_name", {"u_id": referral["referring_doctor_id"]}).execute()
+    to_name = db.rpc("get_user_name", {"u_id": referral["referred_to_doctor_id"]}).execute()
+
+    referral["patient_name"] = patient_name.data
+    referral["referring_doctor_name"] = from_name.data
+    referral["referred_to_doctor_name"] = to_name.data
     return referral
 
 
