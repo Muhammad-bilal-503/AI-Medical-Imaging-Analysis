@@ -19,13 +19,7 @@ def create_patient(
     result = client.table("patients").insert(data).execute()
     if not result.data:
         raise HTTPException(status_code=400, detail="Could not create patient")
-
-    new_patient = result.data[0]
-    client.table("patient_access").insert(
-        {"patient_id": new_patient["id"], "doctor_id": current_user.id, "granted_via": "owner"}
-    ).execute()
-
-    return PatientOut(**new_patient)
+    return PatientOut(**result.data[0])
 
 
 @router.get("", response_model=list[PatientOut])

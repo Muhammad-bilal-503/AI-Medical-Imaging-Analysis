@@ -210,6 +210,31 @@ $$ language sql stable security definer;
 grant execute on function public.get_patient_name(uuid) to authenticated;
 grant execute on function public.get_user_name(uuid) to authenticated;
 
+-- Auto-grant patient_access to the creating doctor, in the SAME
+-- transaction as the patient insert. This matters: when an INSERT
+-- has RETURNING (which supabase-py always requests), Postgres also
+-- re-checks the new row against the table's SELECT policy before
+-- handing it back — so without this trigger, the "doctors see
+-- accessible patients" SELECT policy would reject the RETURNING
+-- clause (no patient_access row exists yet at that instant), and the
+-- whole INSERT fails with "new row violates row-level security
+-- policy" even though the INSERT policy's own check passed.
+create or replace function public.grant_patient_access_to_creator()
+returns trigger as $$
+begin
+  if new.created_by is not null then
+    insert into public.patient_access (patient_id, doctor_id, granted_via)
+    values (new.id, new.created_by, 'owner')
+    on conflict do nothing;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger trg_grant_patient_access
+  after insert on public.patients
+  for each row execute function public.grant_patient_access_to_creator();
+
 -- Patients are private: visible only to doctors with explicit access
 -- (the creator, or a doctor who accepted a referral), or admins.
 -- Any authenticated doctor can still create a new patient.
